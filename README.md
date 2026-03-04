@@ -1,4 +1,4 @@
-# Masterthesis-data-analytics
+﻿# Masterthesis-data-analytics
 Data Analytics Project for Customer Data with Python, SQL &amp; PBI 
 
 # Analytics Platform Architecture Comparison  
@@ -8,7 +8,7 @@ This repository contains a reproducible analytics engineering project to compare
 - **Architecture A:** Cloud Data Warehouse (e.g., Snowflake or comparable managed DWH)  
 - **Architecture B:** **DuckDB** (local, embedded, file-based, Python-integrated)
 
-The project is part of a Master’s thesis focusing on **technical and economic evaluation** and resulting in a **decision model** for typical BI/analytics use cases.
+The project is part of a Master's thesis focusing on **technical and economic evaluation** and resulting in a **decision model** for typical BI/analytics use cases.
 
 ---
 
@@ -43,7 +43,7 @@ Out of scope:
 
 ---
 
-## 3. Deliverables (What “Done” Looks Like)
+## 3. Deliverables (What "Done" Looks Like)
 This repository will contain:
 - Parametrized **synthetic data generator** (CSV + Parquet exports)
 - Reference **Star Schema** (SQL DDL)
@@ -57,7 +57,7 @@ This repository will contain:
 
 ## 4. Repository Structure
 - `01_scope/`  
-  Project definition artifacts (architecture overview, KPI catalog, measurement concept, rules)
+  Project definition artifacts (architecture_overview.md, kpi_catalog.md, measurement_concept.md, rules)
 
 - `02_data_generator/`  
   Python generator, configuration, validation checks, dataset exports (ignored if too large)
@@ -112,7 +112,7 @@ AI support is used for:
 - benchmark scripting and documentation generation
 
 AI is **not** used for:
-- interpreting final results as “truth”
+- interpreting final results as "truth"
 - replacing methodological decisions
 - creating scope extensions
 
@@ -127,3 +127,6 @@ AI is **not** used for:
   - `measurement_concept.md`
 - Then: local environment hardening (requirements.txt, packages)
 - Then: build `02_data_generator/` (config-driven generator + validation)
+
+
+

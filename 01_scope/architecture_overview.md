@@ -1,4 +1,4 @@
-# Architecture Overview
+﻿# Architecture Overview
 
 ## 1. Architectural Objective
 
@@ -97,11 +97,11 @@ Columns:
 
 - billing_line_id (PK)
 - invoice_id
-- date_key (FK → dim_date)
-- customer_key (FK → dim_customer)
-- product_key (FK → dim_product)
-- region_key (FK → dim_region)
-- costcenter_key (FK → dim_costcenter)
+- date_key (FK -> dim_date)
+- customer_key (FK -> dim_customer)
+- product_key (FK -> dim_product)
+- region_key (FK -> dim_region)
+- costcenter_key (FK -> dim_costcenter)
 - subscription_type
 - billing_period_start
 - billing_period_end
@@ -247,3 +247,4 @@ The architecture comparison evaluates:
 - Maintainability & governance characteristics
 
 This document defines the structural baseline of the entire analytics project.
+
