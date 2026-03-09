@@ -1,0 +1,62 @@
+﻿seed: 42
+
+date_range:
+  start: 2024-01-01
+  end: 2025-12-31
+
+volumes:
+  small: 500000
+  medium: 5000000
+  large: 20000000
+
+dimensions:
+  customers: 15000
+  products: 60
+  regions: 12
+  costcenters: 18
+
+weights:
+  customer_segment:
+    SMB: 0.7
+    Mid-Market: 0.22
+    Enterprise: 0.08
+  acquisition_channel:
+    inbound: 0.5
+    outbound: 0.25
+    partner: 0.18
+    self_service: 0.07
+  contract_type:
+    monthly: 0.65
+    annual: 0.3
+    multi_year: 0.05
+  plan_tier:
+    Basic: 0.45
+    Pro: 0.35
+    Enterprise: 0.2
+  pricing_model:
+    flat: 0.5
+    usage: 0.3
+    hybrid: 0.2
+  subscription_type:
+    recurring: 0.84
+    usage: 0.12
+    one_time: 0.04
+
+pricing:
+  unit_price_by_tier:
+    Basic: [19, 99]
+    Pro: [80, 350]
+    Enterprise: [300, 1600]
+  discount_probability: 0.35
+  discount_max_share: 0.35
+  cost_share_range: [0.25, 0.75]
+
+anomalies:
+  enabled: true
+  rate: 0.002
+  multiplier_range: [2.5, 4.0]
+
+output:
+  root_dir: data/generated
+  formats: [parquet, csv]
+  parquet_compression: snappy

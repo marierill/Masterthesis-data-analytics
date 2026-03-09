@@ -59,10 +59,10 @@ This repository will contain:
 - `01_scope/`  
   Project definition artifacts (architecture_overview.md, kpi_catalog.md, measurement_concept.md, rules)
 
-- `02_data_generator/`  
+- `02_data_generation/`  
   Python generator, configuration, validation checks, dataset exports (ignored if too large)
 
-- `03_duckdb/`  
+- `03_embedded_dwh/`
   DuckDB schema, SQL queries, Python analysis workflow, benchmarking scripts
 
 - `04_cloud_dwh/`  
@@ -126,7 +126,8 @@ AI is **not** used for:
   - `kpi_catalog.md`
   - `measurement_concept.md`
 - Then: local environment hardening (requirements.txt, packages)
-- Then: build `02_data_generator/` (config-driven generator + validation)
+- Then: build `02_data_generation/` (config-driven generator + validation)
+
 
 
 
