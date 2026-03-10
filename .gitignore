@@ -1,0 +1,31 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Local env
+.env
+
+# Data & results (generated)
+data/
+*.parquet
+*.csv
+05_benchmark_results/results_raw.*
+05_benchmark_results/plots/
+
+# DuckDB database files
+*.duckdb
+*.duckdb.wal
+
+# Snowflake CLI config
+.snowflake/
+
+# OS / IDE
+.vscode/
+.DS_Store
+Thumbs.db
