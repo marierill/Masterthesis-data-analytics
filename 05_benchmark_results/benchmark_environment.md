@@ -17,19 +17,20 @@ All values must be filled in before final benchmark evaluation.
 
 ## 1.1 Operating System
 
-- OS Name:
-- OS Version:
-- Architecture (x64 / ARM):
+- OS Name: Windows 11 Home
+- OS Version: 25H2, Build 26200.8037
+- Architecture (x64 / ARM): x64
 
 ## 1.2 Hardware Specifications
 
-- CPU Model:
-- Number of Physical Cores:
-- Number of Logical Threads:
-- Base Frequency:
-- RAM (GB):
-- Storage Type (SSD / NVMe / HDD):
-- Available Disk Space at Benchmark Start:
+- Device: Huawei MateBook D 15
+- CPU Model: Intel Core i3-1115G4, 11th Gen, 3.00 GHz (Boost 4.10 GHz)
+- Number of Physical Cores: 2
+- Number of Logical Threads: 4
+- Base Frequency: 3.00 GHz
+- RAM (GB): 8.00 GB (7.80 GB usable)
+- Storage Type (SSD / NVMe / HDD): NVMe SSD (PCIe, "PCIe-8 SSD 256GB")
+- Available Disk Space at Benchmark Start: ~132 GB free (238 GB total)
 
 ## 1.3 Software Stack
 
