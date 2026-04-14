@@ -9,6 +9,8 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import pyarrow as pa
+import pyarrow.parquet as pq
 import yaml
 
 
@@ -19,6 +21,9 @@ class VolumeSpec:
 
 
 VOLUME_OFFSETS = {"small": 11, "medium": 17, "large": 23}
+
+# Rows per chunk for Parquet writing (reduces peak RAM for large volume)
+CHUNK_SIZE = 2_000_000
 
 
 def parse_args() -> argparse.Namespace:
@@ -80,7 +85,6 @@ def build_dim_product(cfg: dict, rng: np.random.Generator) -> pd.DataFrame:
     tiers = weighted_choice(rng, cfg["weights"]["plan_tier"], n_products)
     models = weighted_choice(rng, cfg["weights"]["pricing_model"], n_products)
     categories = rng.choice(["Core", "Add-on", "Support", "Automation"], size=n_products)
-
     return pd.DataFrame(
         {
             "product_key": np.arange(1, n_products + 1),
@@ -116,21 +120,9 @@ def build_dim_region(cfg: dict, rng: np.random.Generator) -> pd.DataFrame:
     n_regions = int(cfg["dimensions"]["regions"])
     countries = np.array(
         [
-            "Germany",
-            "France",
-            "Spain",
-            "Italy",
-            "Netherlands",
-            "Sweden",
-            "Poland",
-            "Austria",
-            "Belgium",
-            "Ireland",
-            "USA",
-            "Canada",
-            "Brazil",
-            "Japan",
-            "Singapore",
+            "Germany", "France", "Spain", "Italy", "Netherlands",
+            "Sweden", "Poland", "Austria", "Belgium", "Ireland",
+            "USA", "Canada", "Brazil", "Japan", "Singapore",
         ]
     )
     selected = rng.choice(countries, size=n_regions, replace=False)
@@ -162,7 +154,9 @@ def build_dim_costcenter(cfg: dict, rng: np.random.Generator) -> pd.DataFrame:
     )
 
 
-def _build_unit_price_array(cfg: dict, dim_product: pd.DataFrame, rng: np.random.Generator) -> np.ndarray:
+def _build_unit_price_array(
+    cfg: dict, dim_product: pd.DataFrame, rng: np.random.Generator
+) -> np.ndarray:
     price_ranges = cfg["pricing"]["unit_price_by_tier"]
     prices = np.empty(dim_product.shape[0], dtype=float)
     for idx, tier in enumerate(dim_product["plan_tier"].to_numpy()):
@@ -171,23 +165,23 @@ def _build_unit_price_array(cfg: dict, dim_product: pd.DataFrame, rng: np.random
     return prices
 
 
-def build_fact_billing_lines(
+def _build_fact_chunk(
     cfg: dict,
-    volume: VolumeSpec,
-    dim_date: pd.DataFrame,
-    dim_product: pd.DataFrame,
-    dim_customer: pd.DataFrame,
-    dim_region: pd.DataFrame,
-    dim_costcenter: pd.DataFrame,
+    chunk_start_id: int,
+    chunk_size: int,
+    date_keys: np.ndarray,
+    date_values: np.ndarray,
+    product_unit_prices: np.ndarray,
+    n_customers: int,
+    n_products: int,
+    n_regions: int,
+    n_costcenters: int,
     rng: np.random.Generator,
 ) -> pd.DataFrame:
-    n = volume.rows
-    date_keys = dim_date["date_key"].to_numpy()
-    date_values = dim_date["full_date"].to_numpy(dtype="datetime64[ns]")
+    """Build one chunk of fact_billing_lines rows."""
+    n = chunk_size
 
-    product_unit_prices = _build_unit_price_array(cfg, dim_product, rng)
-
-    product_keys = rng.integers(1, len(dim_product) + 1, size=n, endpoint=False)
+    product_keys = rng.integers(1, n_products + 1, size=n, endpoint=False)
     sampled_dates_idx = rng.integers(0, len(date_keys), size=n, endpoint=False)
     sampled_dates = date_values[sampled_dates_idx]
 
@@ -217,20 +211,24 @@ def build_fact_billing_lines(
             mult_low, mult_high = cfg["anomalies"]["multiplier_range"]
             multipliers = rng.uniform(mult_low, mult_high, size=n_anomalies)
             revenue[anom_idx] *= multipliers
-            cost[anom_idx] = revenue[anom_idx] * np.minimum(cost_share[anom_idx] + 0.05, 0.95)
+            cost[anom_idx] = revenue[anom_idx] * np.minimum(
+                cost_share[anom_idx] + 0.05, 0.95
+            )
 
     period_start = pd.to_datetime(sampled_dates).to_period("M").to_timestamp()
     period_end = pd.to_datetime(period_start) + pd.offsets.MonthEnd(0)
 
-    df = pd.DataFrame(
+    ids = np.arange(chunk_start_id, chunk_start_id + n)
+
+    return pd.DataFrame(
         {
-            "billing_line_id": np.arange(1, n + 1),
-            "invoice_id": np.floor((np.arange(1, n + 1) - 1) / 2).astype(int) + 1,
+            "billing_line_id": ids,
+            "invoice_id": np.floor((ids - 1) / 2).astype(int) + 1,
             "date_key": date_keys[sampled_dates_idx],
-            "customer_key": rng.integers(1, len(dim_customer) + 1, size=n, endpoint=False),
+            "customer_key": rng.integers(1, n_customers + 1, size=n, endpoint=False),
             "product_key": product_keys,
-            "region_key": rng.integers(1, len(dim_region) + 1, size=n, endpoint=False),
-            "costcenter_key": rng.integers(1, len(dim_costcenter) + 1, size=n, endpoint=False),
+            "region_key": rng.integers(1, n_regions + 1, size=n, endpoint=False),
+            "costcenter_key": rng.integers(1, n_costcenters + 1, size=n, endpoint=False),
             "subscription_type": weighted_choice(rng, cfg["weights"]["subscription_type"], n),
             "billing_period_start": period_start,
             "billing_period_end": period_end,
@@ -241,28 +239,117 @@ def build_fact_billing_lines(
             "cost": cost.round(2),
         }
     )
-    return df
 
 
-def write_table(df: pd.DataFrame, table_name: str, out_dir: Path, cfg: dict) -> list[str]:
+def write_table(df: pd.DataFrame, table_name: str, out_dir: Path, cfg: dict) -> None:
     formats = cfg["output"]["formats"]
-    written = []
-
     if "parquet" in formats:
-        out = out_dir / f"{table_name}.parquet"
-        df.to_parquet(out, index=False, compression=cfg["output"]["parquet_compression"])
-        written.append(out.name)
+        df.to_parquet(
+            out_dir / f"{table_name}.parquet",
+            index=False,
+            compression=cfg["output"]["parquet_compression"],
+        )
     if "csv" in formats:
-        out = out_dir / f"{table_name}.csv"
-        df.to_csv(out, index=False)
-        written.append(out.name)
-
-    return written
+        df.to_csv(out_dir / f"{table_name}.csv", index=False)
 
 
-def write_metadata(cfg: dict, volume: VolumeSpec, out_dir: Path, tables: dict[str, pd.DataFrame]) -> None:
-    config_hash = md5(json.dumps(cfg, sort_keys=True, default=str).encode("utf-8")).hexdigest()
+def write_fact_chunked(
+    cfg: dict,
+    volume: VolumeSpec,
+    dim_date: pd.DataFrame,
+    dim_product: pd.DataFrame,
+    dim_customer: pd.DataFrame,
+    dim_region: pd.DataFrame,
+    dim_costcenter: pd.DataFrame,
+    out_dir: Path,
+    rng: np.random.Generator,
+) -> None:
+    """
+    Write fact_billing_lines in chunks to keep peak RAM low.
+    For small/medium volumes a single chunk suffices.
+    For large (20M rows) uses multiple chunks of CHUNK_SIZE rows.
+    """
+    n_total = volume.rows
+    formats = cfg["output"]["formats"]
+
+    date_keys = dim_date["date_key"].to_numpy()
+    date_values = dim_date["full_date"].to_numpy(dtype="datetime64[ns]")
+    product_unit_prices = _build_unit_price_array(cfg, dim_product, rng)
+
+    n_customers = len(dim_customer)
+    n_products = len(dim_product)
+    n_regions = len(dim_region)
+    n_costcenters = len(dim_costcenter)
+
+    parquet_writer = None
+    csv_chunks = []
+
+    row_id = 1
+    rows_remaining = n_total
+    chunk_idx = 0
+
+    while rows_remaining > 0:
+        this_chunk = min(CHUNK_SIZE, rows_remaining)
+        chunk_idx += 1
+        print(
+            f"  fact_billing_lines: chunk {chunk_idx} "
+            f"({row_id:,} – {row_id + this_chunk - 1:,} of {n_total:,})"
+        )
+
+        chunk_df = _build_fact_chunk(
+            cfg=cfg,
+            chunk_start_id=row_id,
+            chunk_size=this_chunk,
+            date_keys=date_keys,
+            date_values=date_values,
+            product_unit_prices=product_unit_prices,
+            n_customers=n_customers,
+            n_products=n_products,
+            n_regions=n_regions,
+            n_costcenters=n_costcenters,
+            rng=rng,
+        )
+
+        if "parquet" in formats:
+            table = pa.Table.from_pandas(chunk_df, preserve_index=False)
+            if parquet_writer is None:
+                parquet_writer = pq.ParquetWriter(
+                    out_dir / "fact_billing_lines.parquet",
+                    table.schema,
+                    compression=cfg["output"]["parquet_compression"],
+                )
+            parquet_writer.write_table(table)
+
+        if "csv" in formats:
+            csv_chunks.append(chunk_df)
+
+        row_id += this_chunk
+        rows_remaining -= this_chunk
+
+        # Free chunk memory immediately
+        del chunk_df
+
+    if parquet_writer is not None:
+        parquet_writer.close()
+
+    if "csv" in formats and csv_chunks:
+        print("  fact_billing_lines: writing CSV...")
+        pd.concat(csv_chunks, ignore_index=True).to_csv(
+            out_dir / "fact_billing_lines.csv", index=False
+        )
+        del csv_chunks
+
+
+def write_metadata(
+    cfg: dict, volume: VolumeSpec, out_dir: Path, dim_tables: dict[str, pd.DataFrame]
+) -> None:
+    config_hash = md5(
+        json.dumps(cfg, sort_keys=True, default=str).encode("utf-8")
+    ).hexdigest()
     now = pd.Timestamp.utcnow().isoformat()
+
+    row_counts = {name: int(df.shape[0]) for name, df in dim_tables.items()}
+    row_counts["fact_billing_lines"] = volume.rows
 
     metadata = {
         "created_at_utc": now,
@@ -270,7 +357,7 @@ def write_metadata(cfg: dict, volume: VolumeSpec, out_dir: Path, tables: dict[st
         "volume": volume.label,
         "rows_fact_billing_lines": volume.rows,
         "config_hash_md5": config_hash,
-        "tables": {name: int(df.shape[0]) for name, df in tables.items()},
+        "tables": row_counts,
         "date_range": cfg["date_range"],
     }
 
@@ -291,13 +378,30 @@ def main() -> None:
     seed = int(cfg["seed"]) + VOLUME_OFFSETS[volume.label]
     rng = np.random.default_rng(seed)
 
+    print(f"Building dimensions for volume='{volume.label}'...")
     dim_date = build_dim_date(cfg["date_range"]["start"], cfg["date_range"]["end"])
     dim_product = build_dim_product(cfg, rng)
     dim_customer = build_dim_customer(cfg, rng)
     dim_region = build_dim_region(cfg, rng)
     dim_costcenter = build_dim_costcenter(cfg, rng)
 
-    fact = build_fact_billing_lines(
+    root = Path(args.output_dir or cfg["output"]["root_dir"]) / volume.label
+    root.mkdir(parents=True, exist_ok=True)
+
+    dim_tables = {
+        "dim_date": dim_date,
+        "dim_product": dim_product,
+        "dim_customer": dim_customer,
+        "dim_region": dim_region,
+        "dim_costcenter": dim_costcenter,
+    }
+
+    print("Writing dimension tables...")
+    for name, table in dim_tables.items():
+        write_table(table, name, root, cfg)
+
+    print(f"Building and writing fact_billing_lines ({volume.rows:,} rows, chunk size {CHUNK_SIZE:,})...")
+    write_fact_chunked(
         cfg=cfg,
         volume=volume,
         dim_date=dim_date,
@@ -305,26 +409,11 @@ def main() -> None:
         dim_customer=dim_customer,
         dim_region=dim_region,
         dim_costcenter=dim_costcenter,
+        out_dir=root,
         rng=rng,
     )
 
-    root = Path(args.output_dir or cfg["output"]["root_dir"]) / volume.label
-    root.mkdir(parents=True, exist_ok=True)
-
-    tables = {
-        "dim_date": dim_date,
-        "dim_product": dim_product,
-        "dim_customer": dim_customer,
-        "dim_region": dim_region,
-        "dim_costcenter": dim_costcenter,
-        "fact_billing_lines": fact,
-    }
-
-    for name, table in tables.items():
-        write_table(table, name, root, cfg)
-
-    write_metadata(cfg, volume, root, tables)
-
+    write_metadata(cfg, volume, root, dim_tables)
     print(f"Generated volume='{volume.label}' rows={volume.rows} at {root}")
 
 
