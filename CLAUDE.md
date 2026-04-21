@@ -2,7 +2,7 @@
 
 > Single source of truth for Claude Code.
 > Read this file completely before making any changes to the repository.
-> Last updated: Phase 1 complete / Phase 2A complete (14.04.2026)
+> Last updated: Phase 2 complete / Phase 3 next (16.04.2026)
 
 ---
 
@@ -24,7 +24,7 @@ alternative to Cloud Data Warehouses (Snowflake) for typical SaaS BI/analytics w
 | | Architecture A | Architecture B |
 |---|---|---|
 | Platform | Snowflake (Free Trial, Standard, Single-Region AWS EU Frankfurt) | DuckDB 1.1.3 (local, embedded, file-based) |
-| BI Tool | Power BI Desktop (DirectQuery) | Power BI Desktop (ODBC) |
+| BI Tool | Power BI Desktop (DirectQuery) | Power BI Desktop (ODBC, read_only mode) |
 | Transformation | dbt Core (06_dbt/, Snowflake target) | dbt Core (06_dbt/, DuckDB target) |
 | Benchmark | 04_cloud_dwh/benchmark.py | 03_embedded_dwh/benchmark.py |
 
@@ -106,11 +106,13 @@ Generator seed: 42 (offsets per volume: small=53, medium=59, large=65)
 01_scope/                 # architecture_overview.md, kpi_catalog.md, measurement_concept.md
 02_data_generation/       # generator.py (chunked), config.yaml, validate_data.py
 03_embedded_dwh/          # schema.sql, load_data.py, kpi_queries.sql, benchmark.py,
-                          # anomaly_detection.py (to be added Phase 2C)
+                          # anomaly_detection.py (complete)
 04_cloud_dwh/             # schema.sql, load_data.py, kpi_queries.sql, benchmark.py,
-                          # anomaly_detection.py (to be added Phase 3C)
-05_benchmark_results/     # benchmark_environment.md, result CSVs, plots
-06_dbt/                   # dbt_project.yml, profiles.yml, models/ (Phase 2B + 3C)
+                          # anomaly_detection.py (Phase 3C)
+05_benchmark_results/     # benchmark_environment.md, DuckDB CSVs complete
+06_dbt/                   # masterthesis/ dbt project (DuckDB target complete,
+                          # Snowflake target Phase 3B)
+07_powerbi/               # DuckDB_Dashboard.pbix (complete), Snowflake_Dashboard.pbix (Phase 3D)
 ```
 
 ---
@@ -122,13 +124,33 @@ Generator seed: 42 (offsets per volume: small=53, medium=59, large=65)
 | 0 | Local environment setup | ✅ Complete (14.04.2026) |
 | 1 | Synthetic data generation (all 3 volumes) | ✅ Complete (14.04.2026) |
 | 2A | DuckDB: schema + data loading (all 3 volumes) | ✅ Complete (14.04.2026) |
-| 2B | DuckDB: dbt Core setup + models | ⏳ Pending |
-| 2C | DuckDB: anomaly detection script | ⏳ Pending |
-| 2D | Power BI: DuckDB ODBC dashboard | ⏳ Pending |
-| 2E | DuckDB: benchmark.py full run | ⏳ Pending |
-| 3 | Snowflake registration + implementation | ⏳ Pending (after Phase 2 complete) |
-| 4 | Benchmarking (both platforms) | ⏳ Pending |
-| 5 | Evaluation + AI tracking documentation | ⏳ Pending |
+| 2B | DuckDB: dbt Core – staging + mart models | ✅ Complete (15.04.2026) |
+| 2C | DuckDB: anomaly detection script + first run | ✅ Complete (15.04.2026) |
+| 2D | Power BI: DuckDB ODBC dashboard (4 visuals) | ✅ Complete (16.04.2026) |
+| 2E | DuckDB: benchmark full run (3 volumes, 13 queries, 10 runs) | ✅ Complete (16.04.2026) |
+| 3A | Snowflake: registration + schema + data loading | ⏳ Next |
+| 3B | Snowflake: dbt Snowflake target + models | ⏳ Pending |
+| 3C | Snowflake: anomaly detection script | ⏳ Pending |
+| 3D | Power BI: Snowflake DirectQuery dashboard | ⏳ Pending |
+| 3E | Snowflake: benchmark full run (3 volumes) | ⏳ Pending |
+| 4 | Evaluation + comparison + AI tracking | ⏳ Pending |
+| 5 | REPRODUCING.md + README update | ⏳ Pending |
+
+---
+
+## DuckDB Benchmark Results Summary (Phase 2E)
+
+| Query | Category | small Warm (ms) | medium Warm (ms) | large Warm (ms) |
+|---|---|---|---|---|
+| Q1 Total Revenue | Simple agg | 1.0 | 4.9 | 17.5 |
+| Q5 ARPA | Filtered agg | 36.6 | 255.8 | 1030.0 |
+| Q7 Revenue/Segment | GROUP BY | 11.3 | 67.5 | 239.7 |
+| Q8 MoM Growth | Window fn | 9.0 | 39.8 | 135.2 |
+| Q12 Top-10% Share | Ranking | 12.6 | 43.5 | 138.6 |
+| Q13 Anomaly input | Time-series | 5.5 | 36.7 | 131.1 |
+
+Key finding: Q5 ARPA (COUNT DISTINCT) is the most expensive query at all volume levels.
+Scaling is sub-linear: 4x data gives ~3.5x runtime increase (medium to large).
 
 ---
 
@@ -164,7 +186,11 @@ OS: Windows 11 Home, Version 25H2, x64
 Device: Huawei MateBook D 15
 CPU: Intel Core i3-1115G4, 2 cores / 4 threads, 3.00 GHz
 RAM: 8.00 GB (7.80 GB usable)
-Storage: PCIe SSD, 256 GB
+Storage: PCIe SSD, 256 GB (~6 GB free after CSV cleanup)
 Python: 3.11.8 (venv at .venv/)
 DuckDB: 1.1.3
+dbt-duckdb: 1.10.1
+dbt-core: 1.11.8
+DuckDB ODBC Driver: 64-bit, manually registered
+Power BI Desktop: installed
 ```
