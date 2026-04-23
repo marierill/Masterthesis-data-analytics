@@ -47,24 +47,28 @@ def parse_args() -> argparse.Namespace:
 
 def parse_queries(sql_text: str) -> list[tuple[str, str]]:
     """
-    Splits a SQL file into named (label, sql) pairs.
-    Labels are extracted from comments: -- Q1: Total Revenue
+    Finds all Q-label blocks by scanning for Q-comment headers,
+    then collecting SQL until the next Q-label or end of file.
+    Robust against varying separator line lengths.
     """
-    blocks = re.split(r"-{60,}", sql_text)
     queries: list[tuple[str, str]] = []
+    label_pattern = re.compile(r'--\s*(Q\d+:\s*[^\n]+)', re.MULTILINE)
+    matches = list(label_pattern.finditer(sql_text))
 
-    for block in blocks:
-        lines = block.strip().splitlines()
-        label = None
+    for i, match in enumerate(matches):
+        label = match.group(1).strip()
+        start = match.end()
+        end = matches[i + 1].start() if i + 1 < len(matches) else len(sql_text)
+        block = sql_text[start:end]
+
         sql_lines = []
-        for line in lines:
-            m = re.match(r"--\s*(Q\d+:\s*.+)", line.strip())
-            if m:
-                label = m.group(1).strip()
-            elif line.strip() and not line.strip().startswith("--"):
+        for line in block.splitlines():
+            stripped = line.strip()
+            if stripped and not stripped.startswith('--'):
                 sql_lines.append(line)
-        sql = "\n".join(sql_lines).strip()
-        if label and sql:
+        sql = '\n'.join(sql_lines).strip()
+
+        if sql:
             queries.append((label, sql))
 
     return queries
@@ -126,6 +130,12 @@ def main() -> None:
     sql_text = queries_path.read_text(encoding="utf-8")
     queries = parse_queries(sql_text)
     print(f"Loaded {len(queries)} queries from {queries_path}")
+
+    if not queries:
+        raise ValueError(
+            f"No queries found in {queries_path}. "
+            "Ensure queries are labeled with '-- Q1: ...' style comments."
+        )
 
     print(f"\nRunning benchmark on {db_path} (volume={args.volume}, {args.runs} runs/query)...\n")
     results = run_benchmark(db_path=db_path, queries=queries, n_runs=args.runs)

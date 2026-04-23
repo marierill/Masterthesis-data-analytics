@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(.venv/Scripts/python.exe 02_data_generation/generator.py --volume small)",
+      "Bash(winsat disk:*)",
+      "Bash(powershell.exe -Command \"winsat disk\")",
+      "Bash(powershell.exe -Command \"Get-PhysicalDisk | Select-Object FriendlyName, MediaType, BusType, Size | Format-List\")"
+    ]
+  }
+}
