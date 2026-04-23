@@ -2,7 +2,7 @@
 **Analytics Platform Architecture Comparison**  
 Cloud Data Warehouse (Snowflake) vs. Local Embedded Analytics (DuckDB)
 
-This repository contains a reproducible analytics engineering project to compare two BI/analytics platform architectures under identical workloads as part of a Master's thesis in Digital Business Management (Hochschule Albstadt-Sigmaringen).
+This repository contains a reproducible data analytics project to compare two BI/analytics platform architectures under identical workloads as part of a Master's thesis in Digital Business Management (Hochschule Albstadt-Sigmaringen).
 
 ---
 
