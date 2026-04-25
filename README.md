@@ -1,186 +1,218 @@
-﻿# Masterthesis-data-analytics
-**Analytics Platform Architecture Comparison**  
-Cloud Data Warehouse (Snowflake) vs. Local Embedded Analytics (DuckDB)
+﻿# Analytics Platform Architecture Comparison
+## Cloud Data Warehouse (Snowflake) vs. Local Embedded Analytics (DuckDB)
 
-This repository contains a reproducible analytics engineering project to compare two BI/analytics platform architectures under identical workloads as part of a Master's thesis in Digital Business Management (Hochschule Albstadt-Sigmaringen).
-
----
-
-## 1. Objective
-
-Build a controlled benchmark and evaluation setup to answer:
-- How do Cloud DWHs and DuckDB compare under typical **SaaS BI/Analytics workloads**?
-- What are the trade-offs in **performance, cost, implementation effort, and governance**?
-- Under which conditions is each architecture the better choice?
-
-**Overarching Research Question:**  
-Under which conditions do local analytics platforms like DuckDB represent a technically and economically viable alternative to Cloud Data Warehouses like Snowflake for modern BI and analytics workloads?
+> **Masterthesis Project** – Marie Rill | M.Sc. Digital Business Management  
+> Hochschule Albstadt-Sigmaringen | Supervisor: Prof. Dr. Hubert Kempter  
+> Repository: https://github.com/marierill/Masterthesis-data-analytics
 
 ---
 
-## 2. Use Case: SaaS Revenue & Customer Intelligence
+## What is this?
 
-**Scenario:** A fictitious B2B SaaS company (~500 customers, 3 product plans, 24 months history) seeks to professionalise its revenue reporting and identify churn risks early.
+A reproducible, end-to-end benchmark comparing two BI/analytics platform
+architectures under identical workloads:
 
-### Fact & Dimension Tables
-| Table | Content | ~Rows (at 5M base) |
-|---|---|---|
-| `fact_subscriptions` | Monthly subscription transactions (MRR, plan, status, changes) | 500k |
-| `fact_events` | User events (logins, feature usage, session duration) | 400k |
-| `dim_customers` | Customer master (segment, region, acquisition channel) | 2k |
-| `dim_products` | Plans, price tiers, features per plan | 10 |
-| `dim_date` | Calendar dimension (24 months) | 730 |
+- **Architecture A:** Snowflake – managed Cloud Data Warehouse (Standard Edition, XS Warehouse, AWS EU Frankfurt)
+- **Architecture B:** DuckDB – local embedded analytics engine (file-based, Python-integrated)
 
-### Analysis Layers
-- **Layer A – Standard BI Reporting (SQL):** MRR/ARR dashboard, Churn Rate, NRR, cohort retention analysis, revenue by plan/region/segment
-- **Layer B – Explorative Analysis (Python/Pandas):** Revenue distribution, CLV calculation, feature-usage-to-churn correlation
-- **Layer C – Data Mining:** Anomaly detection on MRR trends (Isolation Forest) + Customer segmentation (k-Means on RFM features)
-- **Layer D – AI-assisted Development:** Time logging with vs. without Claude – at least 3 comparable tasks per platform
+Both architectures are evaluated on the same synthetic SaaS dataset,
+the same 13 KPI queries, and the same five evaluation dimensions –
+producing directly comparable results that inform an evidence-based
+decision model for typical KMU BI/analytics scenarios.
 
 ---
 
-## 3. Scope Freeze (Non-negotiable)
+## Goals
 
-To ensure methodological comparability, the following scope is fixed:
-- **Exactly two architectures:** Cloud DWH (Snowflake Free Trial) vs. DuckDB (local, embedded)
-- **Identical synthetic dataset** for both architectures (same seed, same schema)
-- **Identical KPI logic and SQL workloads** (logical equivalence required; only syntax adjustments permitted)
-- **Identical data mining tasks:** Anomaly detection (Isolation Forest) + Customer segmentation (k-Means/RFM)
-- **Three data volume levels:**
-  - **0.5M rows** (baseline)
-  - **5M rows** (realistic SaaS scale)
-  - **20M rows** (stress test)
-- **Benchmark execution:** Each query run **10 times**; cold vs. warm runs documented separately
+- **Reproducibility:** All datasets are synthetically generated with a fixed seed (42).
+  Anyone can clone this repo and reproduce the full benchmark from scratch.
 
-Out of scope:
-- Additional architectures or platforms
-- Real-time / streaming setups
-- Extended ML beyond anomaly detection and segmentation
-- Scope extensions after benchmarking starts
+- **Comparability:** Identical SQL logic on both platforms (syntax adjustments only).
+  Identical data volumes, identical query categories, identical measurement protocol
+  (10 runs per query, cold/warm separated, result caching disabled on Snowflake).
 
----
+- **Practical relevance:** The SaaS subscription analytics use case reflects
+  real-world KMU BI workloads – not synthetic TPC-H-style stress tests.
+  Three volume levels (500k / 5M / 20M rows) model startup, growth-stage,
+  and analytics-unit scenarios.
 
-## 4. Measurement Concept
+- **Transparency:** All design decisions, measurement constraints, and known
+  limitations are documented in `05_benchmark_results/benchmark_environment.md`
+  and discussed in the thesis.
 
-### Evaluation Dimensions & Weights (for Decision Matrix)
-| Priority | Dimension | Weight | Thesis Chapter |
-|---|---|---|---|
-| 1 | Economic Efficiency & Time to Value | 30% | Ch. 5.2 |
-| 2 | Technical Functionality | 25% | Ch. 5.1 |
-| 3 | Performance | 20% | Ch. 5.4 |
-| 4 | Data Privacy & Lock-in | 15% | Ch. 5.5 |
-| 5 | Maintainability & Governance | 10% | Ch. 5.3 |
-
-### Key Metrics per Dimension
-**Economic Efficiency:** Setup cost (EUR), recurring platform cost (EUR/month), setup effort (h), implementation effort (h), Time to First Insight (h), AI efficiency gain (h + Δ%)
-
-**Technical Functionality:** SQL feature coverage (checklist), Python integration (ordinal), data mining support (ordinal), file format support (binary), BI tool connectivity (ordinal)
-
-**Performance:** Query runtime simple aggregation (s, median of 10 runs), query runtime complex query (s), dataset load time CSV/Parquet (s), cold vs. warm start delta (s), memory usage during query (MB)
-
-**Data Privacy & Lock-in:** Data location (categorical), GDPR compliance (ordinal), vendor lock-in risk (Likert 1–5), migration effort (h, estimated)
-
-**Maintainability & Governance:** Git compatibility (ordinal), RBAC (binary + h), schema change effort (h), pipeline automation (ordinal), metadata management (ordinal)
+- **Portfolio quality:** The repository is structured as a professional
+  data engineering project – parameterized scripts, version-controlled
+  transformation logic (dbt), CI-ready test suite, and full documentation.
 
 ---
 
-## 4a. Organisation Profiles (Reference Scenarios)
+## Limitations
 
-Three constructed reference profiles run as a red thread from Ch. 1.2 through to the scenario-based application of the decision matrix in Ch. 6.3. Each profile corresponds to one data volume level.
+- **Hardware:** Benchmarks run on a consumer laptop (Intel Core i3-1115G4,
+  8 GB RAM, PCIe SSD). Absolute DuckDB runtimes will differ on higher-spec
+  hardware. Relative comparisons and scaling behavior are hardware-independent.
 
-| | Profil 1 – NovaSaaS | Profil 2 – ScaleUp GmbH | Profil 3 – AnalyticsHub |
-|---|---|---|---|
-| **Type** | B2B SaaS Startup | Growth-stage SaaS KMU | Internal Analytics Unit (SaaS Group) |
-| **Size** | 12 employees, 1 analyst | 80–120 employees, 1 analyst + controlling | 500–1.500 group, 8–12 analytics team |
-| **Customers** | 80–150 | 500–1.500 | Multiple product lines |
-| **Volume Level** | 0.5M rows | 5M rows | 20M rows |
-| **Budget (Analytics)** | 40–70k EUR/yr | 150–300k EUR/yr | 500k–1M EUR/yr |
-| **Top Priority** | Time to Value | Technical Functionality | Maintainability & Governance |
+- **Network latency included:** Snowflake measurements are taken at the
+  Python application level and include network round-trip latency to
+  AWS EU Frankfurt (~80–120 ms). Internal Snowflake execution times
+  (available via QUERY_HISTORY) are not used as primary metric to ensure
+  methodological consistency between platforms.
 
-### Dimension Weights per Profile (for Decision Matrix Ch. 6.3)
+- **Snowflake tier:** XS Warehouse (8 vCPUs, ~16 GB RAM) is the smallest
+  available configuration. Larger warehouses would improve Snowflake
+  performance proportionally. XS represents the realistic entry-level
+  for a KMU first adopting Snowflake.
 
-| Dimension | Base | P1 Startup | P2 KMU | P3 Konzern-Unit |
-|---|---|---|---|---|
-| Economic Efficiency & TtV | 30% | **40%** | 25% | 15% |
-| Technical Functionality | 25% | 20% | **35%** | 25% |
-| Performance | 20% | 15% | 15% | 20% |
-| Data Privacy & Lock-in | 15% | 10% | 15% | **25%** |
-| Maintainability & Governance | 10% | **5%** | 10% | **30%** |
+- **Single-user scenario:** No concurrent query load. Multi-user performance
+  (Snowflake's primary advantage) is evaluated qualitatively, not benchmarked.
+
+- **No streaming / real-time:** Benchmark covers batch and near-real-time
+  analytical workloads only. Streaming pipelines are explicitly out of scope.
+
+- **Free Trial constraints:** Snowflake Free Trial (Standard Edition, 30 days,
+  $400 credits). Enterprise features (multi-cluster, advanced governance,
+  Tri-Secret Secure) are not available and not evaluated.
+
+- **Synthetic data:** All data is generated, not sourced from a real business.
+  Statistical distributions are realistic but anomaly injection rate (0.2%)
+  is controlled. Production datasets may exhibit different characteristics.
 
 ---
 
-## 5. Repository Structure
+## Repository Structure
 
 ```
-01_scope/
-    architecture_overview.md
-    kpi_catalog.md
-    measurement_concept.md
-    scope_rules.md
-
-02_data_generation/
-    generator.py              # Parametrised synthetic data generator
-    config.yaml               # Volume levels, seed, schema config
-    validate.py               # Data quality checks
-    exports/                  # CSV + Parquet outputs (gitignored if large)
-
-03_embedded_dwh/
-    schema/                   # DuckDB DDL
-    queries/                  # SQL KPI queries + drilldowns
-    analysis/                 # Python workflows (Pandas, scikit-learn)
-    benchmark/                # Benchmark scripts (multi-run)
-
-04_cloud_dwh/
-    schema/                   # Snowflake DDL
-    queries/                  # Adapted SQL (logic unchanged)
-    benchmark/                # Benchmark scripts
-
-05_benchmark_results/
-    raw/                      # Raw benchmark outputs (CSV)
-    aggregated/               # Mean/std results per volume level
-    plots/                    # Visualisations
-    evaluation_notebook.ipynb # Analysis + decision matrix
-
-06_ai_time_log/
-    time_log.csv              # Task, platform, time_with_ai, time_without_ai, delta
+01_scope/                 # Project definition, KPI catalog, measurement concept
+02_data_generation/       # Synthetic data generator (config-driven, reproducible)
+03_embedded_dwh/          # DuckDB: schema, load, queries, benchmark, anomaly detection
+04_cloud_dwh/             # Snowflake: schema, load, queries, benchmark, anomaly detection
+05_benchmark_results/     # Result CSVs, plots, benchmark environment documentation
+06_dbt/                   # dbt transformation layer (DuckDB + Snowflake targets)
+07_powerbi/               # Power BI dashboards (.pbix) for both platforms
 ```
 
 ---
 
-## 6. Project Phases
+## Key Results
 
-| Phase | Description | Status |
+| Metric | DuckDB | Snowflake |
 |---|---|---|
-| 0 | Business Case, KPI Catalogue & Measurement Concept | ✅ Complete |
-| 1 | Theoretical Framework (Thesis Ch. 2) | 🔄 In Progress |
-| 2 | Synthetic Data Generation | ⏳ Pending |
-| 3 | DuckDB Implementation | ⏳ Pending |
-| 4 | Snowflake Implementation | ⏳ Pending |
-| 5 | Benchmarking & Evaluation | ⏳ Pending |
-| 6 | Decision Model | ⏳ Pending |
+| Q1 Total Revenue – small (500k) | **1.0 ms** | 175 ms |
+| Q1 Total Revenue – large (20M) | **17 ms** | 151 ms |
+| Q5 ARPA – small | **37 ms** | 319 ms |
+| Q5 ARPA – large | 1,007 ms | **568 ms** ← Crossover |
+| Scaling factor small→large | ~10–30× | ~1–2× |
+| Anomaly detection (Feb 2025) | ✓ detected | ✓ detected |
+| Snowflake credit consumption | – | 0.8 Credits (~$3.20) |
+| Snowflake Free Trial cost | – | ~$4.00 total |
+
+**Key finding:** DuckDB dominates at small and medium volumes (up to 179× faster).
+Snowflake becomes competitive at large volumes for parallelization-heavy operations
+(COUNT DISTINCT). Snowflake shows near-zero scaling sensitivity – network latency
+dominates regardless of data volume.
 
 ---
 
-## 7. Working Agreements
+## Quickstart
 
-- No logical query changes between platforms (syntax adjustments only).
-- All benchmark scripts are versioned and parametrised.
-- Results stored as CSV/Parquet with metadata (timestamp, volume, platform, run_id).
-- Scope drift is treated as a project defect.
-- AI time log entries are made immediately after each task (not reconstructed).
+See [REPRODUCING.md](REPRODUCING.md) for full step-by-step instructions.
+
+```bash
+# 1. Setup
+git clone https://github.com/marierill/Masterthesis-data-analytics.git
+cd Masterthesis-data-analytics
+py -3.11 -m venv .venv && .\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+
+# 2. Generate data
+python 02_data_generation/generator.py --volume small
+python 02_data_generation/validate_data.py --data-dir data/generated/small --expected-rows 500000
+
+# 3. DuckDB benchmark
+python 03_embedded_dwh/load_data.py --data-dir data/generated/small --db-path data/generated/small/benchmark.duckdb
+python 03_embedded_dwh/benchmark.py --db-path data/generated/small/benchmark.duckdb --volume small --output-dir 05_benchmark_results
+
+# 4. Evaluate
+python 05_benchmark_results/evaluation.py
+```
 
 ---
 
-## 8. AI Assistance Guidelines
+## Use Case
 
-AI support (Claude Code) is used for:
-- Schema blueprints, synthetic data logic, SQL query writing/optimisation
-- Benchmark scripting and documentation generation
-- Layer D time logging support
+**SaaS Subscription Revenue Analytics** – a fictitious B2B SaaS company,
+24 months of billing history (Jan 2024 – Dec 2025).
 
-AI is **not** used for:
-- Interpreting final benchmark results as ground truth
-- Replacing methodological decisions
-- Creating scope extensions
+### Star Schema
 
-**Claude Code must always start by reading `CLAUDE.md` and `01_scope/` before making any changes.**
+```
+fact_billing_lines        # revenue, cost, quantity, subscription_type
+    ├── dim_date          # 731 rows – daily calendar
+    ├── dim_product       # 60 rows  – plan tiers, pricing models
+    ├── dim_customer      # 15,000 rows – segments, channels, industries
+    ├── dim_region        # 12 rows  – countries, sales areas
+    └── dim_costcenter    # 18 rows  – departments, cost types
+```
+
+### Data Volumes
+
+| Label | Rows | Purpose |
+|---|---|---|
+| small | 500,000 | Smoke test, logic validation |
+| medium | 5,000,000 | Primary benchmark |
+| large | 20,000,000 | Scalability stress test |
+
+### KPI Workload (13 Queries)
+
+Simple aggregations · Filtered aggregations · Multi-dimensional GROUP BY ·
+Window functions (MoM, YoY, rolling average, YTD) · Ranking · Time-series
+
+---
+
+## Measurement Protocol
+
+- **10 runs** per query per volume
+- **Cold run** (run 1) and **warm runs** (runs 2–10) reported separately
+- **Mean ± standard deviation** reported
+- Snowflake: `USE_CACHED_RESULT = FALSE` enforced per session
+- DuckDB: `time.perf_counter()` at Python application level
+- Results: CSV in `05_benchmark_results/`
+
+---
+
+## Tech Stack
+
+| Component | Technology |
+|---|---|
+| Language | Python 3.11.8 |
+| Embedded analytics | DuckDB 1.1.3 |
+| Cloud DWH | Snowflake Standard (Free Trial) |
+| Transformation | dbt Core 1.11.8 (dbt-duckdb + dbt-snowflake) |
+| BI / Reporting | Power BI Desktop (ODBC for DuckDB, native for Snowflake) |
+| Anomaly detection | scikit-learn 1.5.2 (Z-Score, IQR, Isolation Forest) |
+| Version control | Git / GitHub |
+
+---
+
+## References
+
+This benchmark design is inspired by and methodologically aligned with:
+
+- **duckdblabs/db-benchmark** – Reproducible Benchmark of Database-like Ops  
+  https://github.com/duckdblabs/db-benchmark
+
+- **DuckDB Labs – NYC Taxi Benchmark** – Benchmarking DuckDB with the NYC Taxi Dataset  
+  https://duckdb.org/2024/10/16/driving-csv-performance-benchmarking-duckdb-with-the-nyc-taxi-dataset
+
+- **ClickBench** – A Benchmark For Analytical Databases (ClickHouse)  
+  https://github.com/ClickHouse/ClickBench
+
+---
+
+## Citation
+
+```
+Rill, Marie (2026): Wirtschaftliche und technische Analyse von BI- und
+Analytics-Plattformarchitekturen: Cloud Data Warehouses versus DuckDB
+als lokale Alternative. M.Sc. Thesis, Hochschule Albstadt-Sigmaringen.
+```
