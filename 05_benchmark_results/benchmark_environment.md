@@ -183,7 +183,7 @@ benchmark run. DuckDB uses separate .duckdb files per volume.
   Result: 500,000 rows | 557,734,251.83 EUR total revenue
 - First dbt mart available: 15.04.2026 (dbt run: 2.13s, PASS=3)
 - First Power BI dashboard: 16.04.2026 (after ODBC driver installation)
-- Total duration (setup to dashboard): ~2 days (distributed work sessions)
+- Total duration (setup to dashboard): ~5 working days (distributed across project phases)
 
 ## Architecture A: Snowflake
 
@@ -194,7 +194,7 @@ benchmark run. DuckDB uses separate .duckdb files per volume.
   Query: SELECT CURRENT_VERSION() → 10.13.104
 - First dbt mart available: 21.04.2026 (dbt run --target snowflake: 6.85s)
 - First Power BI dashboard: 22.04.2026 (native Snowflake connector)
-- Total duration (registration to dashboard): ~2 days (distributed work)
+- Total duration (registration to dashboard): ~5 working days (distributed across project phases)
 
 ---
 
