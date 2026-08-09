@@ -7,9 +7,8 @@ Erstellt folgende Outputs in 05_benchmark_results/plots/:
   1. warm_mean_comparison.png  – Warm Mean pro Query und Volume (Balken)
   2. scaling_behavior.png      – Skalierungsverhalten über Volumes (Linien)
   3. cold_warm_ratio.png       – Cold/Warm-Verhältnis DuckDB vs. Snowflake
-  4. std_comparison.png        – Streuung (Standardabweichung) im Vergleich
-  5. crossover_analysis.png    – DuckDB/SF Faktor pro Query (Crossover-Punkt)
-  6. tco_comparison.png        – TCO-Übersicht DuckDB vs. Snowflake
+  4. crossover_analysis.png    – DuckDB/SF Faktor pro Query (Crossover-Punkt)
+  5. tco_comparison.png        – TCO-Übersicht DuckDB vs. Snowflake
 
 Usage:
   python 05_benchmark_results/evaluation.py
@@ -31,11 +30,8 @@ RESULTS_DIR = Path("05_benchmark_results")
 PLOTS_DIR = RESULTS_DIR / "plots"
 PLOTS_DIR.mkdir(parents=True, exist_ok=True)
 
-# Colors
 COLOR_DUCKDB = "#1B6CA8"
 COLOR_SF = "#29B5E8"
-COLOR_DUCKDB_LIGHT = "#A8CDE8"
-COLOR_SF_LIGHT = "#A8E4F5"
 COLOR_HIGHLIGHT = "#E8433A"
 
 VOLUMES = ["small", "medium", "large"]
@@ -55,15 +51,6 @@ QUERY_SHORT = {
     "Q11: Cumulative Revenue Year-to-Date (YTD)": "Q11\nYTD",
     "Q12: Revenue Concentration - Top-10% Customer Share": "Q12\nTop-10%",
     "Q13: Monthly Aggregated Revenue (Input for Anomaly Detection)": "Q13\nAnomaly",
-}
-
-CATEGORY_COLORS = {
-    "Simple Aggregation": "#2E86AB",
-    "Filtered Aggregation": "#A23B72",
-    "Multi-dim. GROUP BY": "#F18F01",
-    "Window Function": "#C73E1D",
-    "Ranking": "#3B1F2B",
-    "Time-Series": "#44BBA4",
 }
 
 QUERY_CATEGORIES = {
@@ -86,7 +73,7 @@ QUERY_CATEGORIES = {
 # Data loading
 # ---------------------------------------------------------------------------
 
-def load_results() -> dict[tuple[str, str], pd.DataFrame]:
+def load_results() -> dict:
     datasets = {}
     for platform in ["duckdb", "snowflake"]:
         for volume in VOLUMES:
@@ -98,7 +85,7 @@ def load_results() -> dict[tuple[str, str], pd.DataFrame]:
                 df["category"] = df["query_label"].map(QUERY_CATEGORIES)
                 datasets[(platform, volume)] = df
             else:
-                print(f"WARNING: {path} not found – skipping")
+                print(f"WARNING: {path} not found - skipping")
     return datasets
 
 
@@ -128,26 +115,20 @@ def plot_warm_mean_comparison(datasets: dict) -> None:
         x = np.arange(len(queries))
         width = 0.38
 
-        bars_dk = ax.bar(x - width/2, dk["warm_mean_ms"], width,
-                         label="DuckDB", color=COLOR_DUCKDB, alpha=0.9, zorder=3)
-        bars_sf = ax.bar(x + width/2, sf["warm_mean_ms"], width,
-                         label="Snowflake", color=COLOR_SF, alpha=0.9, zorder=3)
+        ax.bar(x - width/2, dk["warm_mean_ms"], width,
+               label="DuckDB", color=COLOR_DUCKDB, alpha=0.9, zorder=3)
+        ax.bar(x + width/2, sf["warm_mean_ms"], width,
+               label="Snowflake", color=COLOR_SF, alpha=0.9, zorder=3)
 
-        # Highlight crossover
         for i, (d, s) in enumerate(zip(dk["warm_mean_ms"], sf["warm_mean_ms"])):
             if s < d:
                 ax.bar(x[i] - width/2, d, width, color=COLOR_HIGHLIGHT, alpha=0.3, zorder=4)
                 ax.bar(x[i] + width/2, s, width, color=COLOR_HIGHLIGHT, alpha=0.3, zorder=4)
 
-        ax.set_title(
-            f"{VOLUME_LABELS[volume]}",
-            fontsize=12, fontweight="bold"
-        )
+        ax.set_title(f"{VOLUME_LABELS[volume]}", fontsize=12, fontweight="bold")
         ax.set_xticks(x)
-        ax.set_xticklabels(
-            [QUERY_SHORT.get(q, q) for q in queries],
-            fontsize=7, rotation=0, ha="center"
-        )
+        ax.set_xticklabels([QUERY_SHORT.get(q, q) for q in queries],
+                           fontsize=7, rotation=0, ha="center")
         ax.set_ylabel("Laufzeit Warm Mean (ms)", fontsize=10)
         ax.grid(axis="y", alpha=0.3, zorder=0)
         ax.legend(fontsize=9)
@@ -166,7 +147,6 @@ def plot_warm_mean_comparison(datasets: dict) -> None:
 # ---------------------------------------------------------------------------
 
 def plot_scaling_behavior(datasets: dict) -> None:
-    # Select representative queries from each category
     selected = [
         "Q1: Total Revenue",
         "Q5: Average Revenue per Account (ARPA)",
@@ -182,7 +162,7 @@ def plot_scaling_behavior(datasets: dict) -> None:
         fontsize=13, fontweight="bold", y=1.01
     )
     axes = axes.flatten()
-    volume_points = [0.5, 5, 20]  # Millionen Zeilen
+    volume_points = [0.5, 5, 20]
 
     for ax, query in zip(axes, selected):
         dk_vals, sf_vals = [], []
@@ -201,7 +181,6 @@ def plot_scaling_behavior(datasets: dict) -> None:
         ax.plot(volume_points, sf_vals, "s--", color=COLOR_SF,
                 linewidth=2.5, markersize=7, label="Snowflake", zorder=3)
 
-        # Crossover shading
         dk_arr = np.array(dk_vals, dtype=float)
         sf_arr = np.array(sf_vals, dtype=float)
         if np.any(sf_arr < dk_arr):
@@ -235,14 +214,11 @@ def plot_scaling_behavior(datasets: dict) -> None:
 
 def plot_cold_warm_ratio(datasets: dict) -> None:
     fig, axes = plt.subplots(1, 2, figsize=(14, 6))
-    fig.suptitle(
-        "Cold/Warm-Verhältnis DuckDB vs. Snowflake",
-        fontsize=13, fontweight="bold"
-    )
+    fig.suptitle("Cold/Warm-Verhältnis DuckDB vs. Snowflake",
+                 fontsize=13, fontweight="bold")
 
-    for ax, (platform_key, platform_label, color) in zip(
-        axes,
-        [("duckdb", "DuckDB", COLOR_DUCKDB), ("snowflake", "Snowflake", COLOR_SF)]
+    for ax, (platform_key, platform_label) in zip(
+        axes, [("duckdb", "DuckDB"), ("snowflake", "Snowflake")]
     ):
         ratios_by_volume = {}
         for volume in VOLUMES:
@@ -251,7 +227,10 @@ def plot_cold_warm_ratio(datasets: dict) -> None:
                 ratio = df["cold_run_ms"] / df["warm_mean_ms"].replace(0, np.nan)
                 ratios_by_volume[volume] = ratio.values
 
-        queries = datasets.get((platform_key, "small"))["query_label"].tolist()
+        base = datasets.get((platform_key, "small"))
+        if base is None:
+            continue
+        queries = base["query_label"].tolist()
         x = np.arange(len(queries))
         width = 0.25
         colors_v = ["#1B3A5C", "#2E6BA8", "#5FA8E8"]
@@ -266,10 +245,8 @@ def plot_cold_warm_ratio(datasets: dict) -> None:
                    label="Cold = Warm (Faktor 1)")
         ax.set_title(f"{platform_label}", fontsize=12, fontweight="bold")
         ax.set_xticks(x + width)
-        ax.set_xticklabels(
-            [QUERY_SHORT.get(q, q) for q in queries],
-            fontsize=7, rotation=0, ha="center"
-        )
+        ax.set_xticklabels([QUERY_SHORT.get(q, q) for q in queries],
+                           fontsize=7, rotation=0, ha="center")
         ax.set_ylabel("Cold/Warm-Faktor", fontsize=10)
         ax.legend(fontsize=8)
         ax.grid(axis="y", alpha=0.3, zorder=0)
@@ -308,10 +285,8 @@ def plot_crossover_analysis(datasets: dict) -> None:
         ax.axvline(x=1, color="black", linestyle="--", linewidth=1.5,
                    label="Gleichstand (Faktor 1)")
         ax.set_yticks(range(len(queries)))
-        ax.set_yticklabels(
-            [QUERY_SHORT.get(q, q).replace("\n", " ") for q in queries],
-            fontsize=8
-        )
+        ax.set_yticklabels([QUERY_SHORT.get(q, q).replace("\n", " ") for q in queries],
+                           fontsize=8)
         ax.set_xlabel("SF/DK Laufzeit-Verhältnis", fontsize=10)
         ax.set_title(f"{VOLUME_LABELS[volume]}", fontsize=11, fontweight="bold")
         ax.grid(axis="x", alpha=0.3, zorder=0)
@@ -335,10 +310,8 @@ def plot_crossover_analysis(datasets: dict) -> None:
 
 def plot_tco_comparison() -> None:
     fig, axes = plt.subplots(1, 2, figsize=(14, 6))
-    fig.suptitle(
-        "TCO-Übersicht DuckDB vs. Snowflake (Praxisprojekt)",
-        fontsize=13, fontweight="bold"
-    )
+    fig.suptitle("TCO-Übersicht DuckDB vs. Snowflake (Praxisprojekt)",
+                 fontsize=13, fontweight="bold")
 
     # --- Left: Credit consumption ---
     ax = axes[0]
@@ -357,11 +330,11 @@ def plot_tco_comparison() -> None:
     ax.text(0.5, -0.22, "Gesamtkosten: ~$4,00 für das vollständige Praxisprojekt",
             transform=ax.transAxes, ha="center", fontsize=9, style="italic", color="gray")
 
-    # --- Right: Effort comparison ---
+    # --- Right: Effort comparison (aggregiert aus 19 Tracking-Aufgaben) ---
     ax2 = axes[1]
     phases = ["Phase 0\nUmgebung", "Phase 1\nDaten", "Phase 2\nDuckDB", "Phase 3\nSnowflake"]
-    with_ki = [45, 90, 195, 205]
-    without_ki = [500, 400, 810, 690]
+    with_ki = [45, 90, 395, 255]       # Summe = 785 min
+    without_ki = [90, 300, 1290, 750]  # Summe = 2.430 min
     x = np.arange(len(phases))
     width = 0.35
 
@@ -379,9 +352,9 @@ def plot_tco_comparison() -> None:
     total_ki = sum(with_ki)
     total_no_ki = sum(without_ki)
     ax2.text(0.5, -0.18,
-             f"Gesamt mit KI: {total_ki} min ({total_ki/60:.1f}h) | "
-             f"Ohne KI geschätzt: {total_no_ki} min ({total_no_ki/60:.1f}h) | "
-             f"Effizienzgewinn: {(1-total_ki/total_no_ki)*100:.0f}%",
+             f"Gesamt mit KI: {total_ki} min ({total_ki/60:.1f} h) | "
+             f"Ohne KI geschätzt: {total_no_ki} min ({total_no_ki/60:.1f} h) | "
+             f"Effizienzindikator: {total_no_ki/total_ki:.1f}",
              transform=ax2.transAxes, ha="center", fontsize=8, style="italic", color="gray")
 
     plt.tight_layout()
@@ -396,19 +369,20 @@ def plot_tco_comparison() -> None:
 # ---------------------------------------------------------------------------
 
 def print_summary(df: pd.DataFrame) -> None:
-    print("\n" + "="*70)
-    print("BENCHMARK SUMMARY – DuckDB vs. Snowflake")
-    print("="*70)
+    print("\n" + "=" * 70)
+    print("BENCHMARK SUMMARY - DuckDB vs. Snowflake")
+    print("=" * 70)
 
     for volume in VOLUMES:
-        volume_rows = {'small':'500k','medium':'5M','large':'20M'}[volume]
+        volume_rows = {"small": "500k", "medium": "5M", "large": "20M"}[volume]
         print(f"\n--- {volume.upper()} ({volume_rows} Zeilen) ---")
         dk = df[(df["platform"] == "DuckDB") & (df["volume"] == volume)]
         sf = df[(df["platform"] == "Snowflake") & (df["volume"] == volume)]
         if dk.empty or sf.empty:
             continue
 
-        print(f"{'Query':<20} {'DK Warm':>10} {'SF Warm':>10} {'SF/DK':>8}")
+        header = "{:<20} {:>10} {:>10} {:>8}".format("Query", "DK Warm", "SF Warm", "SF/DK")
+        print(header)
         print("-" * 52)
         for _, row in dk.iterrows():
             q_short = row["query_label"][:20]
@@ -418,20 +392,9 @@ def print_summary(df: pd.DataFrame) -> None:
                 continue
             sf_val = sf_row["warm_mean_ms"].values[0]
             ratio = sf_val / dk_val if dk_val > 0 else 0
-            marker = " ← SF FASTER" if ratio < 1.0 else ""
-            print(f"{q_short:<20} {dk_val:>10.1f} {sf_val:>10.1f} {ratio:>8.1f}x{marker}")
-
-    print("\n" + "="*70)
-    print("CROSSOVER QUERIES (Snowflake faster than DuckDB):")
-    for volume in VOLUMES:
-        dk = df[(df["platform"] == "DuckDB") & (df["volume"] == volume)]
-        sf = df[(df["platform"] == "Snowflake") & (df["volume"] == volume)]
-        for _, row in dk.iterrows():
-            sf_row = sf[sf["query_label"] == row["query_label"]]
-            if sf_row.empty:
-                continue
-            if sf_row["warm_mean_ms"].values[0] < row["warm_mean_ms"]:
-                print(f"  {volume:8} | {row['query_label'][:50]}")
+            marker = " <- SF FASTER" if ratio < 1.0 else ""
+            print("{:<20} {:>10.1f} {:>10.1f} {:>7.1f}x{}".format(
+                q_short, dk_val, sf_val, ratio, marker))
 
 
 # ---------------------------------------------------------------------------

@@ -2,8 +2,8 @@
 ## Cloud Data Warehouse (Snowflake) vs. Local Embedded Analytics (DuckDB)
 
 > **Masterthesis Project** – Marie Rill | M.Sc. Digital Business Management  
-> Hochschule Albstadt-Sigmaringen | Supervisor: Prof. Dr. Hubert Kempter  
 > Repository: https://github.com/marierill/Masterthesis-data-analytics
+This repository accompanies the German-language master's thesis „Wirtschaftliche und technische Analyse von BI- und Analytics-Plattformarchitekturen: Cloud Data Warehouses versus lokale Alternativen". The README is written in English to serve as a portfolio project.
 
 ---
 
@@ -90,7 +90,9 @@ decision model for typical KMU BI/analytics scenarios.
 06_dbt/                   # dbt transformation layer (DuckDB + Snowflake targets)
 07_powerbi/               # Power BI dashboards (.pbix) for both platforms
 ```
-
+> **Note:** `anomaly_detection.py` in `03_embedded_dwh/` and `04_cloud_dwh/` was implemented
+> as part of the practical project but excluded from the thesis evaluation. The scripts remain
+> in the repository as documented development artifacts (see Appendix C of the thesis).
 ---
 
 ## Key Results
@@ -172,7 +174,7 @@ Window functions (MoM, YoY, rolling average, YTD) · Ranking · Time-series
 ## Measurement Protocol
 
 - **10 runs** per query per volume
-- **Cold run** (run 1) and **warm runs** (runs 2–10) reported separately
+- **Warm runs** (runs 2–10) used as primary metric. Cold run (run 1) recorded but excluded from evaluation
 - **Mean ± standard deviation** reported
 - Snowflake: `USE_CACHED_RESULT = FALSE` enforced per session
 - DuckDB: `time.perf_counter()` at Python application level
